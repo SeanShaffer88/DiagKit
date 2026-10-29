@@ -1058,10 +1058,20 @@ mod tests {
 
     #[test]
     fn spec_parse_rules() {
-        let ok = parse_spec(
-            r#"{"output_zip":"/tmp/b.zip","app_name":"A","files":["/a.log"],"env":true,
-                "directories":[{"path":"/d","max_files":10}],"extra_text":{"n.txt":"hi"}}"#,
-        )
+        // Absolute paths are platform-shaped: on Windows a
+        // bare "/tmp/b.zip" is NOT absolute (no drive), and
+        // the validator correctly rejects it — the Windows
+        // CI run caught the Unix-shaped original of this
+        // test. (The values below are JSON-ready: the
+        // Windows forms carry escaped backslashes.)
+        let (zip, file, dir) = if cfg!(windows) {
+            (r"C:\\b.zip", r"C:\\a.log", r"C:\\d")
+        } else {
+            ("/tmp/b.zip", "/a.log", "/d")
+        };
+        let ok = parse_spec(&format!(
+            r#"{{"output_zip":"{zip}","app_name":"A","files":["{file}"],"env":true,"directories":[{{"path":"{dir}","max_files":10}}],"extra_text":{{"n.txt":"hi"}}}}"#
+        ))
         .unwrap();
         assert_eq!(ok.app_name.as_deref(), Some("A"));
         assert_eq!(ok.directories[0].max_files, Some(10));
